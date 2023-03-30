@@ -15,10 +15,12 @@ Equinor has provided us with a best practice document 📖, with information abo
 
 The program, with the help of the best practice document, will follow these requirements to solve the issue that the user hands it. 
 
+# Libraries
+
 The program uses the following python libraries:
 
-## Langchain: Mainly used with the LLM (FLAN-UL2). Parameters and prompts can be modified using Langchain functions. 
+Langchain: Mainly used with the LLM (FLAN-UL2). Parameters and prompts can be modified using Langchain functions. 
 
-## Streamlit: Used in the development of the Web Application. Streamlit provides a set of functions that supports python programmers in front-end development where one can track changes in the web app while simultaneously modifying the code in Python.
+Streamlit: Used in the development of the Web Application. Streamlit provides a set of functions that supports python programmers in front-end development where one can track changes in the web app while simultaneously modifying the code in Python.
 
-## Huggingface: To access the FLAN-UL2 model, you must use a HuggingFace API token. Also, the program uses HuggingFace embeddings for embedding the input.
+Huggingface: To access the FLAN-UL2 model, you must use a HuggingFace API token. Also, the program uses HuggingFace embeddings for embedding the input.

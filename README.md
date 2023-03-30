@@ -24,8 +24,9 @@ User will upload the document. The program will then output a table, with the re
 
 The program uses the following python libraries:
 
-Langchain: Mainly used with the LLM (FLAN-UL2). Parameters and prompts can be modified using Langchain functions. 
+Langchain: Mainly used with the LLM (FLAN-UL2). Parameters and prompts can be modified using Langchain functions. Download the library and get started with Langchain here: https://python.langchain.com/en/latest/getting_started/getting_started.html
 
-Streamlit: Used in the development of the Web Application. Streamlit provides a set of functions that supports python programmers in front-end development where one can track changes in the web app while simultaneously modifying the code in Python.
+Streamlit: Used in the development of the Web Application. Streamlit provides a set of functions that supports python programmers in front-end development where one can track changes in the web app while simultaneously modifying the code in Python. Get started: https://streamlit.io/
 
 Huggingface: To access the FLAN-UL2 model, you must use a HuggingFace API token. Also, the program uses HuggingFace embeddings for embedding the input.
+To access your Huggingface API token, click "New token" on the Access tokens section of Settings: https://huggingface.co/settings/tokens

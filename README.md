@@ -11,9 +11,14 @@ Let's make the Equinor Data Catalog better together! 🚀
 
 We are working on developing an NLP web application using LLMs. The web application runs on the Streamlit library. It uses the google FLAN-UL2 model to quality ensure data catalog entries from the user. 
 
-Equinor has provided us with a best practice document 📖, with information about what a data product entry should include to be Top-Notch!. The document includes a checklist, going through each requirement 📋.
+Equinor has provided us with a best practice document, with information about what a data product entry should include to be Top-Notch!.📖 
+The document includes a checklist, going through each requirement 📋.
 
 The program, with the help of the best practice document, will follow these requirements to solve the issue that the user hands it. 
+
+User will upload the document. The program will then output a table, with the requirements of the best practice document, and display which requirements are met, and the areas that still needs work to be complete ✅
+
+
 
 # Libraries
 

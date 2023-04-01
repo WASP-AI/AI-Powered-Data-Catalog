@@ -22,7 +22,7 @@ st.image("equinor.png", width=200)
 
 
 def qa(q, c):
-    os.environ["HUGGINGFACEHUB_API_TOKEN"] = "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"
+    os.environ["HUGGINGFACEHUB_API_TOKEN"] = "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"
     from langchain.llms import HuggingFaceHub
     from langchain.embeddings import HuggingFaceHubEmbeddings
     from langchain.vectorstores import Chroma

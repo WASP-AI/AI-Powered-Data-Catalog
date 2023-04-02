@@ -40,7 +40,6 @@ def qa(q):
     text_splitter = CharacterTextSplitter(chunk_size=760, chunk_overlap=0)
     texts = text_splitter.split_text(docs[0].page_content)
     
-    st.write(texts)
     embeddings = HuggingFaceHubEmbeddings()
 
     if len(texts) == 0:
@@ -175,7 +174,7 @@ if files:
         ###st.write(textt)
         for predefined_question in questions_list:
             # Get the answer for the current file
-            answer = qa(predefined_question, file)
+            answer = qa(predefined_question)
 
             # Store the answer in the session state
             st.session_state["questions_and_answers"][file.name][predefined_question] = answer

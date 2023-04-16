@@ -1,6 +1,5 @@
 import os
 import streamlit as st
-import streamlit as st
 import numpy as np
 import pandas as pd
 import re
@@ -16,6 +15,7 @@ st.image("equinor.png", width=200)
 
 
 def qa(q):
+
     os.environ["HUGGINGFACEHUB_API_TOKEN"] = "INSERT_API_TOKEN"
     from langchain.llms import HuggingFaceHub
     from langchain.embeddings import HuggingFaceHubEmbeddings
@@ -28,12 +28,16 @@ def qa(q):
     from langchain.prompts import PromptTemplate
     
 
+
     loader = UnstructuredPDFLoader("PDF_File_Path")
+    
    # loader= UnstructuredFileLoader()
     docs= loader.load()
     
     flan_ul2 = HuggingFaceHub(
-        repo_id="google/flan-ul2", model_kwargs={"temprature": 0.9, "max_new_tokens": 500}
+
+        repo_id="google/flan-t5-xl", model_kwargs={"temperature": 0.9}
+
     )
 
 
@@ -80,7 +84,9 @@ def qa(q):
 
     Question: {question}
     Answer in English:"""
-    PROMPT = PromptTemplate(template=prompt_template, input_variables=["summaries", "question"])
+
+    PromptTemplate(template=prompt_template, input_variables=["summaries", "question"])
+
 
     qa = VectorDBQA.from_chain_type(llm=flan_ul2, chain_type="stuff", vectorstore=docsearch)
     

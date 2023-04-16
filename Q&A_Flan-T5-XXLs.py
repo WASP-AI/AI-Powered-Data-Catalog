@@ -1,11 +1,11 @@
 import os
 import streamlit as st
-import streamlit as st
 import numpy as np
 import pandas as pd
 import re
 from typing import List
 import os
+import PyPDF4
 import pdfplumber
 import docx2txt
 from langchain.document_loaders import UnstructuredFileLoader
@@ -15,12 +15,12 @@ st.set_page_config(page_title="Equinor Data Catalog", page_icon=":mag:")
 st.image("equinor.png", width=200)
 
 
-def qa(q):
+def qa(q, c):
     os.environ["HUGGINGFACEHUB_API_TOKEN"] = "INSERT_API_TOKEN"
     from langchain.llms import HuggingFaceHub
     from langchain.embeddings import HuggingFaceHubEmbeddings
     from langchain.vectorstores import Chroma
-    from langchain.text_splitter import CharacterTextSplitter
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
     from langchain.chains.qa_with_sources import load_qa_with_sources_chain
     from langchain import VectorDBQA
     from langchain.chains import VectorDBQA
@@ -28,16 +28,18 @@ def qa(q):
     from langchain.prompts import PromptTemplate
     
 
-    loader = UnstructuredPDFLoader("PDF_File_Path")
-   # loader= UnstructuredFileLoader()
+    with open('Willdelete.txt', 'w') as f:
+        f.write(c)
+
+    loader = UnstructuredFileLoader("Willdelete.txt")
     docs= loader.load()
     
     flan_ul2 = HuggingFaceHub(
-        repo_id="google/flan-ul2", model_kwargs={"temprature": 0.9, "max_new_tokens": 500}
+        repo_id="google/flan-t5-xxl", model_kwargs={"temprature": 0.9, "max_new_tokens": 256}
     )
 
 
-    text_splitter = CharacterTextSplitter(chunk_size=760, chunk_overlap=0)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=650, chunk_overlap=0)
     texts = text_splitter.split_text(docs[0].page_content)
     
     embeddings = HuggingFaceHubEmbeddings()
@@ -161,20 +163,22 @@ if files:
             content = docx2txt.process(file)
             text += content
         elif file_extension == 'pdf':
-            with pdfplumber.open(file) as pdf:
-                text = ""
-                for page in pdf.pages:
-                    text += page.extract_text()
+            pdf_reader = PyPDF4.PdfFileReader(file)
+            text = ""
+            for page_num in range(pdf_reader.getNumPages()):
+                page = pdf_reader.getPage(page_num)
+                text += page.extractText()
+
 
         if file.name not in st.session_state["questions_and_answers"]:
             st.session_state["questions_and_answers"][file.name] = {}
 
         # Iterate through all predefined questions
-        ##textt=clean_text(text)
+        textt=clean_text(text)
         ###st.write(textt)
         for predefined_question in questions_list:
             # Get the answer for the current file
-            answer = qa(predefined_question)
+            answer = qa(predefined_question, textt)
 
             # Store the answer in the session state
             st.session_state["questions_and_answers"][file.name][predefined_question] = answer

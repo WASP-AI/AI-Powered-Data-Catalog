@@ -39,7 +39,7 @@ def qa(q, c):
     )
 
 
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=150, chunk_overlap=0)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=650, chunk_overlap=0)
     texts = text_splitter.split_text(docs[0].page_content)
     
     embeddings = HuggingFaceHubEmbeddings()

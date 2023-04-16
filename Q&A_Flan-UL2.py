@@ -15,7 +15,8 @@ st.image("equinor.png", width=200)
 
 
 def qa(q):
-    os.environ["HUGGINGFACEHUB_API_TOKEN"] = "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"
+
+    os.environ["HUGGINGFACEHUB_API_TOKEN"] = "INSERT_API_TOKEN"
     from langchain.llms import HuggingFaceHub
     from langchain.embeddings import HuggingFaceHubEmbeddings
     from langchain.vectorstores import Chroma
@@ -27,13 +28,16 @@ def qa(q):
     from langchain.prompts import PromptTemplate
     
 
-    loader = UnstructuredPDFLoader("C:\\Users\\teelm\\OneDrive\\Documents\\1.Equinor\\work\\demo\\jodi_standard2.pdf")
 
+    loader = UnstructuredPDFLoader("PDF_File_Path")
+    
    # loader= UnstructuredFileLoader()
     docs= loader.load()
     
     flan_ul2 = HuggingFaceHub(
+
         repo_id="google/flan-t5-xl", model_kwargs={"temperature": 0.9}
+
     )
 
 
@@ -80,7 +84,9 @@ def qa(q):
 
     Question: {question}
     Answer in English:"""
+
     PromptTemplate(template=prompt_template, input_variables=["summaries", "question"])
+
 
     qa = VectorDBQA.from_chain_type(llm=flan_ul2, chain_type="stuff", vectorstore=docsearch)
     
@@ -186,4 +192,3 @@ df_results = pd.DataFrame(st.session_state["questions_and_answers"]).T
 if not df_results.empty:
     st.write('Data Description:')
     st.table(df_results)
-    #letsgoo

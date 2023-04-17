@@ -13,10 +13,9 @@ st.set_page_config(page_title="Equinor Data Catalog", page_icon=":mag:")
 # Display the image
 st.image("equinor.png", width=200)
 
-
 def qa(q):
 
-    os.environ["HUGGINGFACEHUB_API_TOKEN"] = "INSERT_API_TOKEN"
+    os.environ["HUGGINGFACEHUB_API_TOKEN"] = "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"
     from langchain.llms import HuggingFaceHub
     from langchain.embeddings import HuggingFaceHubEmbeddings
     from langchain.vectorstores import Chroma
@@ -26,20 +25,14 @@ def qa(q):
     from langchain.chains import VectorDBQA
     from langchain.document_loaders import UnstructuredPDFLoader
     from langchain.prompts import PromptTemplate
-    
 
-
-    loader = UnstructuredPDFLoader("PDF_File_Path")
+    loader = UnstructuredPDFLoader(file)
     
-   # loader= UnstructuredFileLoader()
     docs= loader.load()
     
     flan_ul2 = HuggingFaceHub(
-
         repo_id="google/flan-t5-xl", model_kwargs={"temperature": 0.9}
-
     )
-
 
     text_splitter = CharacterTextSplitter(chunk_size=760, chunk_overlap=0)
     texts = text_splitter.split_text(docs[0].page_content)
@@ -50,26 +43,21 @@ def qa(q):
         st.warning(f"No text was found in the document: {file.name}. Skipping this document.")
     docsearch = Chroma.from_texts(texts, embeddings, metadatas=[{"source": str(i)} for i in range(len(texts))])
 
-
     prompt_template = """
     Given the following context containing multiple subheaders and their corresponding information, make sure to extract and print out the information under a specific subheader when requested. 
     The user will provide the name of the subheader they are interested in, and the you should output the corresponding information. 
     You should also handle variations in the subheader names and document formatting. 
     If the requested subheader is not found, return an appropriate message. 
     Please ensure that each output is clearly labeled and presented in a user-friendly manner.
-
     It is very important to make sure that you include everything under each subheader. 
     -----------------------------------------------------------------------------------
     For example: 
     (if the input is:
     
     Timeliness:
-
     • data is updated every month
     • New publications every week.
-
     And the questions is: What is timeliness defined as?
-
     Output will be:
     
     • data is updated every month
@@ -79,64 +67,21 @@ def qa(q):
     ------------------------------------------------------------------------------------------------------------------------
     Use the following pieces of context to answer the question at the end. If the information can not be found in the context given, just say "i dont know".
     Don't try to make up an answer. Make sure to only use the context given in {summaries} to answer the question.
-
     {summaries}
-
     Question: {question}
     Answer in English:"""
 
     PromptTemplate(template=prompt_template, input_variables=["summaries", "question"])
 
-
     qa = VectorDBQA.from_chain_type(llm=flan_ul2, chain_type="stuff", vectorstore=docsearch)
     
-    #docss = docsearch.similarity_search(query=q)
     query=q
+    
     return qa.run(query)
 
-
-# Define a function to get a list of uploaded files in the current directory
-def get_uploaded_files():
-    files = []
-    for item in os.listdir("."):
-        if os.path.isfile(item):
-            files.append(item)
-    return files
-
-# Define a function to read the contents of a file
-def read_file(file):
-    with open(file, "r") as f:
-        content = f.read()
-    return content
-
-
-# Get a list of uploaded files
-filess = get_uploaded_files()
-
-# Create the search bar
-def clean_text(text: str) -> str:
-    # Replace multiple whitespaces with a single space
-    text = re.sub(r'\s+', ' ', text)
-    # Replace newline characters with a space
-    text = text.replace('\n', ' ')
-    return text
-
-
-# Show live suggestions based on the search term as the user types
-suggestions = [file for file in filess if file.endswith(('.txt', '.pdf'))]
-# Create a multiselect widget to select files based on suggestions
-selected_files = st.multiselect("Search:", suggestions)
-
-# Display the selected files and their contents
-if selected_files:
-    st.write("Selected files:")
-    for file in selected_files:
-        st.write(file)
-        content = read_file(file)
-        st.text(content)
+# ... 
 
 # User inputs
-
 files = st.file_uploader("Choose a file", accept_multiple_files=True, type=['txt','docx','pdf'])
 question = st.text_input('Enter a question:')
 
@@ -151,6 +96,7 @@ questions_list = ["What is Timeliness defined as?",
 
 if question:
     questions_list.append(question)
+
 # Check if the session state already has questions_and_answers attribute; if not, create an empty dictionary
 if "questions_and_answers" not in st.session_state:
     st.session_state["questions_and_answers"] = {}
@@ -176,8 +122,6 @@ if files:
             st.session_state["questions_and_answers"][file.name] = {}
 
         # Iterate through all predefined questions
-        ##textt=clean_text(text)
-        ###st.write(textt)
         for predefined_question in questions_list:
             # Get the answer for the current file
             answer = qa(predefined_question)
@@ -192,3 +136,4 @@ df_results = pd.DataFrame(st.session_state["questions_and_answers"]).T
 if not df_results.empty:
     st.write('Data Description:')
     st.table(df_results)
+

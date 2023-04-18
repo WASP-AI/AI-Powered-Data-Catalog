@@ -13,7 +13,7 @@ st.set_page_config(page_title="Equinor Data Catalog", page_icon=":mag:")
 # Display the image
 st.image("equinor.png", width=200)
 
-def qa(q):
+def qa(q, file):
 
     os.environ["HUGGINGFACEHUB_API_TOKEN"] = "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"
     from langchain.llms import HuggingFaceHub
@@ -25,6 +25,17 @@ def qa(q):
     from langchain.chains import VectorDBQA
     from langchain.document_loaders import UnstructuredPDFLoader
     from langchain.prompts import PromptTemplate
+
+    # Load the file using the appropriate document loader
+    if file.type == "application/pdf":
+        loader = UnstructuredPDFLoader(file)
+    elif file.type == "text/plain":
+        loader = UnstructuredTextLoader(file)
+    elif file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        loader = UnstructuredDOCXLoader(file)
+    else:
+        st.warning(f"Unsupported file type: {file.type}. Skipping this file.")
+        return
 
     loader = UnstructuredPDFLoader(file)
     
@@ -76,10 +87,35 @@ def qa(q):
     qa = VectorDBQA.from_chain_type(llm=flan_ul2, chain_type="stuff", vectorstore=docsearch)
     
     query=q
+
+    
     
     return qa.run(query)
 
-# ... 
+
+def get_uploaded_files():
+    files = []
+    for item in os.listdir("."):
+        if os.path.isfile(item):
+            files.append(item)
+    return files
+
+def read_file(file):
+    with open(file, "r") as f:
+        content = f.read()
+    return content
+
+filess = get_uploaded_files()
+
+suggestions = [file for file in filess if file.endswith(('.txt', '.pdf'))]
+selected_files = st.multiselect("Search:", suggestions)
+
+if selected_files:
+    st.write("Selected files:")
+    for file in selected_files:
+        st.write(file)
+        content = read_file(file)
+        st.text(content)
 
 # User inputs
 files = st.file_uploader("Choose a file", accept_multiple_files=True, type=['txt','docx','pdf'])
@@ -103,7 +139,16 @@ if "questions_and_answers" not in st.session_state:
 
 # Process the uploaded files in a loop and check for the document type to process each document
 if files:
-    for file in files:
+    # Update the session state with the new files
+    if "uploaded_files" not in st.session_state:
+        st.session_state["uploaded_files"] = []
+
+    # Check for new uploaded files
+    new_files = [file for file in files if file not in st.session_state["uploaded_files"]]
+
+    for file in new_files:
+        st.session_state["uploaded_files"].append(file)
+
         file_extension = file.name.split('.')[-1]
         text = ''
         if file_extension == 'txt':
@@ -121,10 +166,9 @@ if files:
         if file.name not in st.session_state["questions_and_answers"]:
             st.session_state["questions_and_answers"][file.name] = {}
 
-        # Iterate through all predefined questions
         for predefined_question in questions_list:
             # Get the answer for the current file
-            answer = qa(predefined_question)
+            answer = qa(predefined_question, file)
 
             # Store the answer in the session state
             st.session_state["questions_and_answers"][file.name][predefined_question] = answer
@@ -136,4 +180,6 @@ df_results = pd.DataFrame(st.session_state["questions_and_answers"]).T
 if not df_results.empty:
     st.write('Data Description:')
     st.table(df_results)
+
+
 

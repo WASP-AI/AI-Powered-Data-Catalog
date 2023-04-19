@@ -84,13 +84,13 @@ def qa(q, file):
 
     PromptTemplate(template=prompt_template, input_variables=["summaries", "question"])
 
-    qa = VectorDBQA.from_chain_type(llm=flan_ul2, chain_type="stuff", vectorstore=docsearch)
+    qaa = VectorDBQA.from_chain_type(llm=flan_ul2, chain_type="stuff", vectorstore=docsearch)
     
     query=q
 
     
     
-    return qa.run(query)
+    return qaa.run(query)
 
 
 def get_uploaded_files():

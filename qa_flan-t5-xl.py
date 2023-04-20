@@ -5,7 +5,6 @@ import pandas as pd
 import re
 from typing import List
 import os
-import PyPDF4
 import pdfplumber
 import docx2txt
 from langchain.document_loaders import UnstructuredFileLoader
@@ -16,38 +15,39 @@ st.image("equinor.png", width=200)
 
 
 def qa(q, c):
+
     os.environ["HUGGINGFACEHUB_API_TOKEN"] = "INSERT_API_TOKEN"
     from langchain.llms import HuggingFaceHub
+    from langchain.chains import RetrievalQA
     from langchain.embeddings import HuggingFaceHubEmbeddings
-    from langchain.vectorstores import Chroma
-    from langchain.text_splitter import RecursiveCharacterTextSplitter
-    from langchain.chains.qa_with_sources import load_qa_with_sources_chain
-    from langchain import VectorDBQA
-    from langchain.chains import VectorDBQA
-    from langchain.document_loaders import UnstructuredPDFLoader
+    from langchain.vectorstores import FAISS, Chroma
+    from langchain.text_splitter import CharacterTextSplitter
+    from langchain.docstore.document import Document
+    from langchain.indexes.vectorstore import VectorstoreIndexCreator
+    from langchain.document_loaders import UnstructuredPDFLoader, TextLoader, PyPDFLoader
     from langchain.prompts import PromptTemplate
-    
+    from langchain.chains.question_answering import load_qa_chain
 
-    with open('Willdelete.txt', 'w') as f:
-        f.write(c)
 
-    loader = UnstructuredFileLoader("Willdelete.txt")
+    with open('Temp.txt', 'w', encoding="utf-8") as f:
+      f.write(c)
+
+    loader = UnstructuredFileLoader("Temp.txt")
     docs= loader.load()
     
+   # loader= UnstructuredFileLoader()
+    
     flan_ul2 = HuggingFaceHub(
-        repo_id="google/flan-t5-xxl", model_kwargs={"temprature": 0.9, "max_new_tokens": 256}
+        repo_id="google/flan-t5-xl", model_kwargs={"temperature": 0.9, "max_length": 512}
     )
 
-
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=650, chunk_overlap=0)
-    texts = text_splitter.split_text(docs[0].page_content)
+    text_splitter = CharacterTextSplitter(chunk_size=700, chunk_overlap=0)
+    texts = text_splitter.split_documents(docs)
     
     embeddings = HuggingFaceHubEmbeddings()
 
-    if len(texts) == 0:
-        st.warning(f"No text was found in the document: {file.name}. Skipping this document.")
-    docsearch = Chroma.from_texts(texts, embeddings, metadatas=[{"source": str(i)} for i in range(len(texts))])
-
+    db = Chroma.from_documents(texts, embeddings)
+    retriever=db.as_retriever(search_type="similarity", search_kwargs={"k": 1})
 
     prompt_template = """
     Given the following context containing multiple subheaders and their corresponding information, make sure to extract and print out the information under a specific subheader when requested. 
@@ -76,19 +76,20 @@ def qa(q, c):
     Have this in mind when looking for answers to questions.
     ------------------------------------------------------------------------------------------------------------------------
     Use the following pieces of context to answer the question at the end. If the information can not be found in the context given, just say "i dont know".
-    Don't try to make up an answer. Make sure to only use the context given in {summaries} to answer the question.
+    Don't try to make up an answer. Make sure to only use the context given in {context} to answer the question.
 
-    {summaries}
+    {context}
 
     Question: {question}
     Answer in English:"""
-    PROMPT = PromptTemplate(template=prompt_template, input_variables=["summaries", "question"])
 
-    qa = VectorDBQA.from_chain_type(llm=flan_ul2, chain_type="stuff", vectorstore=docsearch)
+    PROMPT=PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+    #chain_type_kwargs = {"prompt": PROMPT}
+    qaa = RetrievalQA.from_chain_type(llm=flan_ul2, chain_type="stuff", retriever=retriever)
     
-    #docss = docsearch.similarity_search(query=q)
     query=q
-    return qa.run(query)
+    #docss = docsearch.get_relevant_documents(q)
+    return qaa.run(query)
 
 
 # Define a function to get a list of uploaded files in the current directory
@@ -163,19 +164,16 @@ if files:
             content = docx2txt.process(file)
             text += content
         elif file_extension == 'pdf':
-            pdf_reader = PyPDF4.PdfFileReader(file)
-            text = ""
-            for page_num in range(pdf_reader.getNumPages()):
-                page = pdf_reader.getPage(page_num)
-                text += page.extractText()
+            with pdfplumber.open(file) as pdf:
+                text = ""
+                for page in pdf.pages:
+                    text += page.extract_text()
 
-
+        textt=clean_text(text)
         if file.name not in st.session_state["questions_and_answers"]:
             st.session_state["questions_and_answers"][file.name] = {}
 
         # Iterate through all predefined questions
-        textt=clean_text(text)
-        ###st.write(textt)
         for predefined_question in questions_list:
             # Get the answer for the current file
             answer = qa(predefined_question, textt)

@@ -13,11 +13,13 @@ import docx2txt
 from transformers import BertTokenizer, BertForSequenceClassification, AutoTokenizer, AutoModel
 from langchain.document_loaders import UnstructuredFileLoader
 from langchain.document_loaders import PyPDFLoader
-from langchain.document_loaders import UnstructuredDocxLoader
 
+
+st.set_page_config(page_title="Equinor Data Catalog", page_icon=":mag:")
 
 def qa(q, c):
-    os.environ["HUGGINGFACEHUB_API_TOKEN"] = "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"
+    os.environ["HUGGINGFACEHUB_API_TOKEN"] = "insert api token"
+
     from langchain.llms import HuggingFaceHub
     from langchain.embeddings import HuggingFaceHubEmbeddings
     from langchain.vectorstores import Chroma
@@ -32,6 +34,11 @@ def qa(q, c):
 
     loader = UnstructuredFileLoader("Willdelete.txt")
     docs= loader.load()
+    
+    
+    
+
+
 
 
     flan_ul2 = HuggingFaceHub(
@@ -39,7 +46,7 @@ def qa(q, c):
     )
 
 
-    text_splitter = CharacterTextSplitter(chunk_size=150, chunk_overlap=0)
+    text_splitter = CharacterTextSplitter(chunk_size=512, chunk_overlap=0)
     texts = text_splitter.split_text(docs[0].page_content)
 
     embeddings = HuggingFaceHubEmbeddings()
@@ -49,10 +56,8 @@ def qa(q, c):
     Given the following context containing
     
     The title is in the 2nd line of the PDF, it is before the I. 
-
     for example  oil external standard I Data Product I Collibra
     Please ensure that each output is clearly labeled and presented in a user-friendly manner.
-
     It is very important to make sure that you only include the Title. 
     -----------------------------------------------------------------------------------
     For example: 
@@ -61,16 +66,13 @@ def qa(q, c):
      • Is there a title for this 
   
       Output will be:
-
     • The title is: Jodi oil 
     ---------------------------------------------------------------------------------------
     Have this in mind when looking for answers to questions.
     ------------------------------------------------------------------------------------------------------------------------
     Use the following pieces of context to answer the question at the end. If the information can not be found in the context given, just say "dont know".
     Don't try to make up an answer. Make sure to only use the context given in {summaries} to answer the question.
-
     {summaries}
-
     Question: {question}
     Answer in English:"""
     PROMPT = PromptTemplate(
@@ -78,14 +80,14 @@ def qa(q, c):
     )
 
     chain = load_qa_with_sources_chain(flan_ul2, chain_type="stuff", prompt=PROMPT)
-    global e
-    docs = docsearch.similarity_search(question)
+ 
+    docs = docsearch.similarity_search(e)
     a= chain({"input_documents": docs, "question": q}, return_only_outputs=True)
     b = dict(a)
     d=(b['output_text'])
     e=str(d)
     st.write(e)
-    docs = docsearch.similarity_search(question)
+    docs = docsearch.similarity_search(e)
     return chain({"input_documents": docs, "question": q}, return_only_outputs=True)
 
 
@@ -106,7 +108,6 @@ def read_file(file):
         content = f.read()
     return content
 
-st.set_page_config(page_title="Equinor Data Catalog", page_icon=":mag:")
 
 # Get a list of uploaded files
 files = get_uploaded_files()
@@ -115,22 +116,22 @@ files = get_uploaded_files()
 
 
 # Show live suggestions based on the search term as the user types
-suggestions = [file for file in files if file.endswith(('.txt', '.pdf'))]
+#suggestions = [file for file in files if file.endswith(('.txt', '.pdf'))]
 # Create a multiselect widget to select files based on suggestions
-selected_files = st.multiselect("Search:", suggestions)
+#selected_files = st.multiselect("Search:", suggestions)
 
 # Display the selected files and their contents
-if selected_files:
-    st.write("Selected files:")
-    for file in selected_files:
-        st.write(file)
-        content = read_file(file)
-        st.text(content)
+#if selected_files:
+ #   st.write("Selected files:")
+  #  for file in selected_files:
+   #     st.write(file)
+    #    content = read_file(file)
+     #   st.text(content)
 
 # User inputs
 
 files  = st.file_uploader("Choose a file", accept_multiple_files=True, type=['txt','docx','pdf'])
-question = ('What is the title for this document?')
+e = ('What is the title for this document?')
 results = []
 
 # Process the uploaded files in a loop and checks for document type to process each document for the document type
@@ -152,9 +153,9 @@ if files:
                 text += page.extractText()
 
         # Get the answer for the current file
-        answer = qa(question, text)
+        answer = qa(e, text)
         # Append the current results to the results list
-        results.append({'File Name': file.name, question : answer})
+        results.append({'File Name': file.name, e : answer})
 
 # Convert the results to a pandas dataframe
 df_results = pd.DataFrame(results)
@@ -165,8 +166,6 @@ if not df_results.empty:
     st.table(df_results)
 
 
-# Display the image
-st.image("equinor.png", width=200)
 
 ## The lines after is for the description part
 
@@ -211,13 +210,16 @@ def classify_paragraphs(paragraphs, tokenizer, model):
 
 
 
-def main():
+def comparison(file):
     global para
-    st.title("PDF Paragraph Classifier")
+#    st.title("PDF Paragraph Classifier")
     uploaded_file=file
     if uploaded_file is not None:
         headers = ["Description", "Additional Information"]
-        header_choice = st.selectbox("Choose a header", headers)
+        #Headers choice with a selectbox creates a tab that shows on the streamlit page use only the tuple headers_choice
+
+        #header_choice = st.selectbox(headers, label_visibility="visible", disabled =True) 
+        header_choice = (headers)
         paragraphs = get_paragraphs(uploaded_file, header_choice)
         tokenizer, model = load_bert_model()
         predicted_labels = classify_paragraphs(paragraphs, tokenizer, model)
@@ -227,10 +229,10 @@ def main():
                 all_paragraphs += "**{}**\n\n".format(p)
             else:
                 all_paragraphs += "{}\n\n".format(p)
-        st.write(all_paragraphs)
+        #st.write(all_paragraphs)
         para = all_paragraphs
-        desc=para
-    st.write(para)
+#        desc=para
+    #st.write(para)
 
 
 
@@ -277,27 +279,8 @@ def main():
 
 
     if( title and title_desc) :
-    
-     if( avrundet_similarity_score>=70):
-    
-
-            if (avrundet_similarity_score >=70):
-                st.write ("The title description and title is great")
-                st.write("Cosine similarity score: ", similarity_score)
-                st.write(avrundet_similarity_score, "%")
-
-
-
-            elif (avrundet_similarity_score >= 60):
-                  st.write("The title and description needs a bit more work")
-                  st.write("Cosine similarity score: ", similarity_score)
-                  st.write(avrundet_similarity_score, "%")
-
-
-     else:
-        
-          st.write("It needs a better description")
-
+        return avrundet_similarity_score
 
 if __name__ == '__main__':
-    main()
+    comparison(file)
+    #Display the image and sliders in the sidebar

@@ -6,134 +6,80 @@ import re
 from typing import List
 import os
 import pdfplumber
+from PyPDF2 import PdfFileReader
 import docx2txt
+from datetime import datetime, timedelta
 from langchain.document_loaders import UnstructuredFileLoader
+from langchain.document_loaders import UnstructuredPDFLoader, TextLoader, PyPDFLoader
+from langchain import PromptTemplate, LLMChain
+from langchain.llms import GPT4All
+from langchain.callbacks.base import BaseCallbackManager
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+from langchain.llms import HuggingFaceHub
+from langchain.chains import RetrievalQA
+from langchain.embeddings import HuggingFaceHubEmbeddings
+from langchain.vectorstores import Chroma, FAISS
+from langchain.text_splitter import CharacterTextSplitter
+#from langchain.docstore.document import Document
+#from langchain.indexes.vectorstore import VectorstoreIndexCreator
+from langchain.prompts import PromptTemplate
+#from langchain.chains.question_answering import load_qa_chain
 
 st.set_page_config(page_title="Equinor Data Catalog", page_icon=":mag:")
 # Display the image
 st.image("equinor.png", width=200)
 
+os.environ["HUGGINGFACEHUB_API_TOKEN"] = "INSERT_API"
 
-def qa(q):
-
-    os.environ["HUGGINGFACEHUB_API_TOKEN"] = "INSERT_API_TOKEN"
-    from langchain.llms import HuggingFaceHub
-    from langchain.embeddings import HuggingFaceHubEmbeddings
-    from langchain.vectorstores import Chroma
-    from langchain.text_splitter import CharacterTextSplitter
-    from langchain.chains.qa_with_sources import load_qa_with_sources_chain
-    from langchain import VectorDBQA
-    from langchain.chains import VectorDBQA
-    from langchain.document_loaders import UnstructuredPDFLoader
-    from langchain.prompts import PromptTemplate
+def write_load(script):
+    with open("Willdelete.txt", "w", encoding='utf-8') as f:
+        f.write(script)
     
-
-
-    loader = UnstructuredPDFLoader("PDF_File_Path")
-    
-   # loader= UnstructuredFileLoader()
+    loader = UnstructuredFileLoader("Willdelete.txt")
     docs= loader.load()
+
+    text_splitter = CharacterTextSplitter(chunk_size=750, chunk_overlap=200)
+    texts = text_splitter.split_documents(docs)
+
+    embeddings = HuggingFaceHubEmbeddings()
+    db = Chroma.from_documents(texts, embeddings)
+    retri=db.as_retriever(search_type="similarity", search_kwargs={"k": 1})
+    return retri
+
+def qa(q, retriever):
     
     flan_ul2 = HuggingFaceHub(
-
-        repo_id="google/flan-t5-xl", model_kwargs={"temperature": 0.9}
-
+        repo_id="google/flan-ul2", model_kwargs={"temperature": 0.1, "max_length": 510}
     )
 
-
-    text_splitter = CharacterTextSplitter(chunk_size=760, chunk_overlap=0)
-    texts = text_splitter.split_text(docs[0].page_content)
-    
-    embeddings = HuggingFaceHubEmbeddings()
-
-    if len(texts) == 0:
-        st.warning(f"No text was found in the document: {file.name}. Skipping this document.")
-    docsearch = Chroma.from_texts(texts, embeddings, metadatas=[{"source": str(i)} for i in range(len(texts))])
-
-
-    prompt_template = """
-    Given the following context containing multiple subheaders and their corresponding information, make sure to extract and print out the information under a specific subheader when requested. 
-    The user will provide the name of the subheader they are interested in, and the you should output the corresponding information. 
-    You should also handle variations in the subheader names and document formatting. 
+    prompt_template = """ 
+    Given the following context please answer questions related to specific sections/subheaders: Timeliness, accuracy, uniqueness, latency, currency, description, additional information, and Information owner. 
+    The questions will target a specific section/subheader 
     If the requested subheader is not found, return an appropriate message. 
     Please ensure that each output is clearly labeled and presented in a user-friendly manner.
+    If the information can not be found in the context given, just say "i dont know".
+    Don't try to make up an answer. Make sure to only use the context given in to answer the question.
 
-    It is very important to make sure that you include everything under each subheader. 
-    -----------------------------------------------------------------------------------
-    For example: 
-    (if the input is:
-    
-    Timeliness:
-
-    • data is updated every month
-    • New publications every week.
-
-    And the questions is: What is timeliness defined as?
-
-    Output will be:
-    
-    • data is updated every month
-    • New publications every week.)
-    ---------------------------------------------------------------------------------------
-    Have this in mind when looking for answers to questions.
-    ------------------------------------------------------------------------------------------------------------------------
-    Use the following pieces of context to answer the question at the end. If the information can not be found in the context given, just say "i dont know".
-    Don't try to make up an answer. Make sure to only use the context given in {summaries} to answer the question.
-
-    {summaries}
+    {context}
 
     Question: {question}
     Answer in English:"""
 
-    PromptTemplate(template=prompt_template, input_variables=["summaries", "question"])
-
-
-    qa = VectorDBQA.from_chain_type(llm=flan_ul2, chain_type="stuff", vectorstore=docsearch)
+    PROMPT=PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+    chain_type_kwargs = {"prompt": PROMPT}
+    qaa = RetrievalQA.from_chain_type(llm=flan_ul2, chain_type="stuff", retriever=retriever, chain_type_kwargs=chain_type_kwargs)
     
-    #docss = docsearch.similarity_search(query=q)
     query=q
-    return qa.run(query)
+    return qaa.run(query)
 
-
-# Define a function to get a list of uploaded files in the current directory
-def get_uploaded_files():
-    files = []
-    for item in os.listdir("."):
-        if os.path.isfile(item):
-            files.append(item)
-    return files
-
-# Define a function to read the contents of a file
-def read_file(file):
-    with open(file, "r") as f:
-        content = f.read()
-    return content
-
-
-# Get a list of uploaded files
-filess = get_uploaded_files()
 
 # Create the search bar
-def clean_text(text: str) -> str:
+def clean_text(tet: str) -> str:
     # Replace multiple whitespaces with a single space
-    text = re.sub(r'\s+', ' ', text)
+    tet = re.sub(r'\s+', ' ', tet)
     # Replace newline characters with a space
-    text = text.replace('\n', ' ')
-    return text
-
-
-# Show live suggestions based on the search term as the user types
-suggestions = [file for file in filess if file.endswith(('.txt', '.pdf'))]
-# Create a multiselect widget to select files based on suggestions
-selected_files = st.multiselect("Search:", suggestions)
-
-# Display the selected files and their contents
-if selected_files:
-    st.write("Selected files:")
-    for file in selected_files:
-        st.write(file)
-        content = read_file(file)
-        st.text(content)
+    tet = tet.replace('\n', ' ')
+    return tet
 
 # User inputs
 
@@ -141,13 +87,14 @@ files = st.file_uploader("Choose a file", accept_multiple_files=True, type=['txt
 question = st.text_input('Enter a question:')
 
 # Define your list of questions
-questions_list = ["What is Timeliness defined as?", 
-                  "Is latency defined within the timeliness section?", 
+questions_list = ["What is Timeliness defined as in the document?", "Is latency defined within the timeliness section?", 
                   "Is Uniqueness defined in the document?", 
                   "What is Uniqueness defined as in the document?", 
                   "Are there any duplicates in the data set?", 
                   "What key value is used to ensure uniqueness for each entity in the data set?", 
-                  "Should users be aware of any quality issues related to Uniqueness that have occurred?"]
+                  "Should users be aware of any quality issues related to Uniqueness that have occurred?", "Is the data from the IEA updated regularly each month?",
+                  "Does the application check for updates every hour?",
+                  "Is the time delay considered insignificant for the current use of the data?",]
 
 if question:
     questions_list.append(question)
@@ -171,6 +118,18 @@ if files:
                 text = ""
                 for page in pdf.pages:
                     text += page.extract_text()
+            pdf_reader = PdfFileReader(file)
+            metadata = pdf_reader.getDocumentInfo()
+            last_modified_str = metadata.get('/ModDate', 'D:19000101000000')
+            last_modified_date = datetime.strptime(last_modified_str[2:16], '%Y%m%d%H%M%S')
+            time_difference = datetime.now() - last_modified_date
+            is_recent = time_difference <= timedelta(days=30)
+
+            if is_recent:
+                b="The PDF document was last modified within the past 30 days. Static"
+            else:
+                b="The PDF document was last modified more than 30 days ago. Volatile"
+        textt=clean_text(text)
 
         if file.name not in st.session_state["questions_and_answers"]:
             st.session_state["questions_and_answers"][file.name] = {}
@@ -178,9 +137,15 @@ if files:
         # Iterate through all predefined questions
         ##textt=clean_text(text)
         ###st.write(textt)
+        st.session_state["questions_and_answers"][file.name]["Is the data static or volatile?"] = b
+
+        
+        dbb=write_load(text)
+
+        # Iterate through all predefined questions
         for predefined_question in questions_list:
             # Get the answer for the current file
-            answer = qa(predefined_question)
+            answer = qa(predefined_question, dbb)
 
             # Store the answer in the session state
             st.session_state["questions_and_answers"][file.name][predefined_question] = answer

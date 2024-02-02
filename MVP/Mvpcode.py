@@ -278,7 +278,6 @@ if st.button("Ask a Question"):
 
 
 
-
 ch = st.radio(
     "Choose what function to access",
     ('Text Clarity', 'Matching Title', 'Data Sorting'))
